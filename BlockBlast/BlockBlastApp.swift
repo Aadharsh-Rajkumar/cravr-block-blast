@@ -11,7 +11,7 @@ import SwiftUI
 struct BlockBlastApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            BlockBlast_ContentView()
         }
     }
 }
