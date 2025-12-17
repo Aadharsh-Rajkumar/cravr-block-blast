@@ -115,6 +115,20 @@ struct PieceTemplates {
         // 5x1 - Very long vertical
         [[true], [true], [true], [true], [true]],
     ]
+    
+    static let smallTemplates: [[[Bool]]] = [
+        [[true]],
+        [[true, true]],
+        [[true], [true]],
+        [[true, true, true]],
+        [[true], [true], [true]],
+    ]
+    
+    static func randomSmallPiece() -> BlockPiece {
+        let template = smallTemplates.randomElement()!
+        let color = BlockBlastConstants.blockColors.randomElement()!
+        return BlockPiece(shape: template, color: color)
+    }
 }
 
 struct GameGrid {
@@ -137,7 +151,7 @@ struct GameGrid {
             if targetRow < 0 || targetRow >= size || targetCol < 0 || targetCol >= size {
                 return false
             }
-
+            
             if cells[targetRow][targetCol].isFilled {
                 return false
             }
@@ -162,7 +176,7 @@ struct GameGrid {
                 completeRows.append(row)
             }
         }
-        
+
         for col in 0..<size {
             var isComplete = true
             for row in 0..<size {
@@ -178,7 +192,7 @@ struct GameGrid {
         
         return (completeRows, completeCols)
     }
-
+    
     mutating func clearLines(rows: [Int], cols: [Int]) -> Int {
         var clearedCells = Set<String>()
         
@@ -187,7 +201,7 @@ struct GameGrid {
                 clearedCells.insert("\(row),\(col)")
             }
         }
-
+        
         for col in cols {
             for row in 0..<size {
                 clearedCells.insert("\(row),\(col)")

@@ -25,48 +25,52 @@ struct BlockBlastConstants {
         }
         return window.bounds.width
     }
-
-    static let gridSize: Int = 8
-    static var cellSize: CGFloat {
-        let availableWidth = screenWidth * 0.9
-        return availableWidth / CGFloat(gridSize)
-    }
-    static var cellSpacing: CGFloat { cellSize * 0.08 }
-    static var cellCornerRadius: CGFloat { cellSize * 0.15 }
     
-    static var snapThreshold: CGFloat { cellSize * 0.6 }
+    static let gridSize: Int = 8
+    static var gridCellSize: CGFloat {
+        let availableWidth = screenWidth * 0.85
+        return (availableWidth - CGFloat(gridSize + 1) * cellSpacing) / CGFloat(gridSize)
+    }
+    static var cellSpacing: CGFloat { 3 }
+    static var cellCornerRadius: CGFloat { gridCellSize * 0.15 }
     
     static let piecesPerRound: Int = 3
-    static var piecePreviewScale: CGFloat { 0.6 }
-    static var pieceDragScale: CGFloat { 0.8 }
+    static var trayCellSize: CGFloat { 18 }
+    static var trayCellSpacing: CGFloat { 2 }
+    static var traySlotSize: CGFloat { 100 }
     
-    static let pointsPerBlock: Int = 10
-    static let lineBonus: Int = 50
-    static let comboMultiplier: Int = 2
+    static var smartFitRadius: CGFloat { screenWidth * 0.4 }
     
-    static let primaryGreen = Color(hex: "1a4d2e")
-    static let secondaryGreen = Color(hex: "2d6a4f")
-    static let accentLime = Color(hex: "95d524")
-    static let accentYellow = Color(hex: "d4f542")
-    static let deepGreen = Color(hex: "0d2818")
-    static let gridBackground = Color(hex: "1e5631")
-    static let emptyCell = Color(hex: "143d29")
+    static let pointsPerBlock: Int = 1
+    static let lineClearBonus: Int = 10
+    static func comboMultiplier(for comboCount: Int) -> Int {
+        return comboCount * (comboCount + 1) / 2
+    }
     
-    static let maize = accentYellow
-    static let pumpkin = accentLime
-    static let nonPhotoBlue = Color(hex: "92dce5")
+    static let cravrGreen = Color(hex: "1CD91F")      // Bright green
+    static let cravrBlue = Color(hex: "92DCE5")       // Light blue
+    static let cravrMaize = Color(hex: "F7EC59")      // Yellow
+    static let cravrPumpkin = Color(hex: "FA7921")    // Orange
+    
+    static let cravrDarkBackground = Color(red: 0.05, green: 0.12, blue: 0.08) // Dark green tint
+    static let cravrDarkSurface = Color(red: 0.08, green: 0.15, blue: 0.10)    // Slightly lighter
+    
+    static let gridBackground = Color(red: 0.06, green: 0.14, blue: 0.09).opacity(0.9)
+    static let emptyCell = Color(red: 0.08, green: 0.18, blue: 0.11)
     
     static let blockColors: [Color] = [
-        Color(hex: "95d524"),
-        Color(hex: "d4f542"),
-        Color(hex: "ff6b6b"),
-        Color(hex: "4ecdc4"),
-        Color(hex: "ffe66d"),
-        Color(hex: "ff8c42"),
+        cravrGreen,     // Green blocks
+        cravrBlue,      // Blue blocks
+        cravrMaize,     // Yellow blocks
+        cravrPumpkin,   // Orange blocks
     ]
-
+    
+    static let glowRadius: CGFloat = 12
+    static let glowOpacity: Double = 0.6
+    
     static let placementAnimationDuration: Double = 0.15
-    static let clearAnimationDuration: Double = 0.3
+    static let clearAnimationDuration: Double = 0.25
+    static let comboOverlayDuration: Double = 0.8
     static let menuTransitionDuration: Double = 0.3
 }
 
@@ -81,7 +85,7 @@ extension Color {
             (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
         case 6:
             (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        case 8:
+        case 8: 
             (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
         default:
             (a, r, g, b) = (1, 1, 1, 0)

@@ -18,78 +18,116 @@ struct BlockBlastMenuView: View {
             VStack(spacing: 30) {
                 Spacer()
                 
-                VStack(spacing: 20) {
-                    BlockBlastPixelTitle()
-                        .scaleEffect(logoPulseScale)
-                        .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: logoPulseScale)
-                        .onAppear {
-                            logoPulseScale = 1.05
-                        }
+                VStack(spacing: 16) {
+                    Text("BLOCK")
+                        .font(.system(size: 52, weight: .black, design: .rounded))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [BlockBlastConstants.cravrGreen, BlockBlastConstants.cravrGreen.opacity(0.7)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .shadow(color: BlockBlastConstants.cravrGreen.opacity(0.6), radius: 12, x: 0, y: 0)
                     
-                    HStack(spacing: 8) {
-                        ForEach(0..<5, id: \.self) { index in
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(BlockBlastConstants.blockColors[index % BlockBlastConstants.blockColors.count])
-                                .frame(width: 30, height: 30)
-                                .shadow(color: BlockBlastConstants.blockColors[index % BlockBlastConstants.blockColors.count].opacity(0.5), radius: 4, x: 0, y: 2)
+                    Text("BLAST")
+                        .font(.system(size: 52, weight: .black, design: .rounded))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [BlockBlastConstants.cravrMaize, BlockBlastConstants.cravrPumpkin],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .shadow(color: BlockBlastConstants.cravrPumpkin.opacity(0.6), radius: 12, x: 0, y: 0)
+                        .offset(y: -8)
+                    
+                    HStack(spacing: 12) {
+                        ForEach(0..<4, id: \.self) { index in
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(BlockBlastConstants.blockColors[index])
+                                .frame(width: 32, height: 32)
+                                .shadow(
+                                    color: BlockBlastConstants.blockColors[index].opacity(0.7),
+                                    radius: 10,
+                                    x: 0,
+                                    y: 0
+                                )
                                 .offset(y: blockBounce)
                                 .animation(
                                     .easeInOut(duration: 0.6)
                                     .repeatForever(autoreverses: true)
-                                    .delay(Double(index) * 0.1),
+                                    .delay(Double(index) * 0.12),
                                     value: blockBounce
                                 )
                         }
                     }
+                    .padding(.top, 10)
                     .onAppear {
-                        blockBounce = -10
+                        blockBounce = -8
                     }
-                }
-                
-                VStack(spacing: 10) {
-                    Text("HIGH SCORE")
-                        .font(.system(size: BlockBlastConstants.screenWidth * 0.045, weight: .semibold, design: .rounded))
-                        .foregroundColor(.white)
-                        .shadow(color: .black.opacity(0.8), radius: 3, x: 2, y: 2)
-                    
-                    ZStack {
-                        RoundedRectangle(cornerRadius: BlockBlastConstants.screenWidth * 0.03)
-                            .frame(width: BlockBlastConstants.screenWidth * 0.35, height: BlockBlastConstants.screenHeight * 0.065)
-                            .foregroundColor(.black.opacity(0.6))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: BlockBlastConstants.screenWidth * 0.03)
-                                    .stroke(BlockBlastConstants.accentLime.opacity(0.5), lineWidth: 2)
-                            )
-                            .shadow(color: .black.opacity(0.5), radius: 4, x: 0, y: 2)
-                        
-                        Text("\(viewModel.highScore)")
-                            .font(.system(size: BlockBlastConstants.screenWidth * 0.07, weight: .bold, design: .rounded))
-                            .foregroundColor(BlockBlastConstants.accentYellow)
-                            .shadow(color: .black.opacity(0.8), radius: 3, x: 2, y: 2)
-                    }
-                }
-                
-                Spacer()
-                
-                VStack(spacing: 15) {
-                    Text("TAP ANYWHERE")
-                        .font(.system(size: BlockBlastConstants.screenWidth * 0.055, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-                        .shadow(color: .black.opacity(0.8), radius: 3, x: 2, y: 2)
-                    
-                    Text("TO START")
-                        .font(.system(size: BlockBlastConstants.screenWidth * 0.055, weight: .bold, design: .rounded))
-                        .foregroundColor(.white.opacity(0.9))
-                        .shadow(color: .black.opacity(0.8), radius: 3, x: 2, y: 2)
                 }
                 .scaleEffect(logoPulseScale)
-                .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: logoPulseScale)
+                .animation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true), value: logoPulseScale)
+                .onAppear {
+                    logoPulseScale = 1.02
+                }
                 
                 Spacer()
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                viewModel.startGame()
+                
+                VStack(spacing: 12) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "crown.fill")
+                            .foregroundColor(BlockBlastConstants.cravrMaize)
+                        Text("BEST SCORE")
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                    
+                    Text("\(viewModel.highScore)")
+                        .font(.system(size: 44, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                }
+                .padding(.vertical, 20)
+                .padding(.horizontal, 40)
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(BlockBlastConstants.cravrDarkSurface)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                        )
+                )
+                
+                Spacer()
+                
+                Button(action: {
+                    viewModel.startGame()
+                }) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 22))
+                        Text("PLAY")
+                            .font(.system(size: 22, weight: .bold, design: .rounded))
+                    }
+                    .foregroundColor(.black)
+                    .padding(.horizontal, 60)
+                    .padding(.vertical, 18)
+                    .background(
+                        Capsule()
+                            .fill(
+                                LinearGradient(
+                                    colors: [BlockBlastConstants.cravrGreen, BlockBlastConstants.cravrGreen.opacity(0.8)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                            .shadow(color: BlockBlastConstants.cravrGreen.opacity(0.5), radius: 15, x: 0, y: 5)
+                    )
+                }
+                .scaleEffect(logoPulseScale)
+                
+                Spacer()
             }
             
             VStack {
@@ -98,94 +136,19 @@ struct BlockBlastMenuView: View {
                         dismiss()
                     }) {
                         Image(systemName: "chevron.left")
-                            .font(.system(size: BlockBlastConstants.screenWidth * 0.06, weight: .bold))
-                            .foregroundColor(.white)
-                            .shadow(color: .black.opacity(0.8), radius: 3, x: 2, y: 2)
-                            .padding(BlockBlastConstants.screenWidth * 0.04)
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.white.opacity(0.7))
+                            .frame(width: 40, height: 40)
+                            .background(Color.white.opacity(0.15))
+                            .clipShape(Circle())
                     }
+                    .padding(.leading, 20)
+                    .padding(.top, 10)
+                    
                     Spacer()
                 }
                 Spacer()
             }
         }
-    }
-}
-
-struct BlockBlastPixelTitle: View {
-    let blockColors: [Color] = [
-        BlockBlastConstants.accentYellow,
-        BlockBlastConstants.accentLime,
-        BlockBlastConstants.accentYellow,
-        BlockBlastConstants.accentLime,
-        BlockBlastConstants.accentYellow,
-    ]
-    
-    let blastColors: [Color] = [
-        BlockBlastConstants.accentLime,
-        BlockBlastConstants.accentYellow,
-        BlockBlastConstants.accentLime,
-        BlockBlastConstants.accentYellow,
-        BlockBlastConstants.accentLime,
-    ]
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                ForEach(Array("BLOCK".enumerated()), id: \.offset) { index, char in
-                    PixelLetterView(
-                        char: char,
-                        color: blockColors[index % blockColors.count],
-                        size: BlockBlastConstants.screenWidth * 0.1
-                    )
-                }
-            }
-            
-            HStack(spacing: 0) {
-                ForEach(Array("BLAST".enumerated()), id: \.offset) { index, char in
-                    PixelLetterView(
-                        char: char,
-                        color: blastColors[index % blastColors.count],
-                        size: BlockBlastConstants.screenWidth * 0.1
-                    )
-                }
-            }
-        }
-        .padding(.horizontal, BlockBlastConstants.screenWidth * 0.05)
-    }
-}
-
-struct PixelLetterView: View {
-    let char: Character
-    let color: Color
-    let size: CGFloat
-    var widthScale: CGFloat = 1.3
-    var outlineOffset: CGFloat = 1.5
-    
-    private var pixelFont: Font {
-        if let uiFont = UIFont(name: "PressStart2P-Regular", size: size) {
-            return Font(uiFont)
-        } else {
-            return .system(size: size, weight: .bold, design: .monospaced)
-        }
-    }
-    
-    var body: some View {
-        ZStack {
-            Group {
-                Text(String(char)).font(pixelFont).foregroundColor(.black).offset(x: -outlineOffset, y: 0)
-                Text(String(char)).font(pixelFont).foregroundColor(.black).offset(x: outlineOffset, y: 0)
-                Text(String(char)).font(pixelFont).foregroundColor(.black).offset(x: 0, y: -1)
-                Text(String(char)).font(pixelFont).foregroundColor(.black).offset(x: 0, y: 1)
-                Text(String(char)).font(pixelFont).foregroundColor(.black).offset(x: -outlineOffset, y: -1)
-                Text(String(char)).font(pixelFont).foregroundColor(.black).offset(x: outlineOffset, y: -1)
-                Text(String(char)).font(pixelFont).foregroundColor(.black).offset(x: -outlineOffset, y: 1)
-                Text(String(char)).font(pixelFont).foregroundColor(.black).offset(x: outlineOffset, y: 1)
-            }
-            
-            Text(String(char))
-                .font(pixelFont)
-                .foregroundColor(color)
-        }
-        .scaleEffect(x: widthScale, y: 1.0, anchor: .center)
     }
 }

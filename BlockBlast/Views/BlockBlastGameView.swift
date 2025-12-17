@@ -12,9 +12,10 @@ struct BlockBlastGameView: View {
     @State private var gridFrame: CGRect = .zero
     
     var body: some View {
-        VStack(spacing: 20) {
-            ScoreDisplayView(score: viewModel.score)
-                .padding(.top, BlockBlastConstants.screenHeight * 0.05)
+        VStack(spacing: 0) {
+            TopBarView(viewModel: viewModel)
+                .padding(.top, 10)
+                .padding(.bottom, 20)
             
             Spacer()
             
@@ -26,29 +27,66 @@ struct BlockBlastGameView: View {
             Spacer()
             
             PieceTrayView(viewModel: viewModel, gridFrame: gridFrame)
-                .padding(.bottom, BlockBlastConstants.screenHeight * 0.05)
+                .padding(.bottom, 30)
         }
     }
 }
 
-struct ScoreDisplayView: View {
-    let score: Int
+struct TopBarView: View {
+    @ObservedObject var viewModel: BlockBlastViewModel
     
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: BlockBlastConstants.screenWidth * 0.0375)
-                .frame(width: BlockBlastConstants.screenWidth * 0.5, height: BlockBlastConstants.screenHeight * 0.07)
-                .foregroundColor(.black.opacity(0.5))
-                .overlay(
-                    RoundedRectangle(cornerRadius: BlockBlastConstants.screenWidth * 0.0375)
-                        .stroke(BlockBlastConstants.accentLime.opacity(0.3), lineWidth: 1)
-                )
+        HStack {
+            Button(action: {
+                viewModel.exitToMenu()
+            }) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.white.opacity(0.7))
+                    .frame(width: 36, height: 36)
+                    .background(Color.white.opacity(0.15))
+                    .clipShape(Circle())
+            }
             
-            Text("Score: \(score)")
-                .font(.system(size: BlockBlastConstants.screenWidth * 0.055, weight: .bold, design: .rounded))
-                .foregroundColor(BlockBlastConstants.accentYellow)
-                .shadow(color: .black, radius: 2, x: 1, y: 1)
+            Spacer()
+            
+            VStack(spacing: 2) {
+                Image(systemName: "crown.fill")
+                    .font(.system(size: 14))
+                    .foregroundColor(BlockBlastConstants.cravrMaize)
+                
+                Text("\(viewModel.score)")
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+            }
+            
+            Spacer()
+            
+            HStack(spacing: 8) {
+                Button(action: {
+                    viewModel.toggleSound()
+                }) {
+                    Image(systemName: viewModel.soundEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(viewModel.soundEnabled ? BlockBlastConstants.cravrGreen : .white.opacity(0.5))
+                        .frame(width: 36, height: 36)
+                        .background(Color.white.opacity(0.15))
+                        .clipShape(Circle())
+                }
+                
+                Button(action: {
+                    viewModel.toggleHaptics()
+                }) {
+                    Image(systemName: viewModel.hapticsEnabled ? "iphone.radiowaves.left.and.right" : "iphone.slash")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(viewModel.hapticsEnabled ? BlockBlastConstants.cravrGreen : .white.opacity(0.5))
+                        .frame(width: 36, height: 36)
+                        .background(Color.white.opacity(0.15))
+                        .clipShape(Circle())
+                }
+            }
         }
+        .padding(.horizontal, 20)
     }
 }
 
@@ -57,41 +95,34 @@ struct BlockGridView: View {
     @Binding var gridFrame: CGRect
     
     private let gridSize = BlockBlastConstants.gridSize
-    private var cellSize: CGFloat {
-        let availableWidth = BlockBlastConstants.screenWidth * 0.9
-        return (availableWidth - CGFloat(gridSize - 1) * BlockBlastConstants.cellSpacing) / CGFloat(gridSize)
-    }
+    private let cellSize = BlockBlastConstants.gridCellSize
+    private let spacing = BlockBlastConstants.cellSpacing
     
     var body: some View {
-        VStack(spacing: BlockBlastConstants.cellSpacing) {
+        VStack(spacing: spacing) {
             ForEach(0..<gridSize, id: \.self) { row in
-                HStack(spacing: BlockBlastConstants.cellSpacing) {
+                HStack(spacing: spacing) {
                     ForEach(0..<gridSize, id: \.self) { col in
                         GridCellView(
                             cell: viewModel.grid.cells[row][col],
                             isClearing: viewModel.clearingRows.contains(row) || viewModel.clearingCols.contains(col),
                             isPreview: isPreviewCell(row: row, col: col) && viewModel.isValidPlacement,
                             cellSize: cellSize,
-                            previewColor: viewModel.draggedPieceIndex != nil && viewModel.draggedPieceIndex! < viewModel.availablePieces.count
-                                ? viewModel.availablePieces[viewModel.draggedPieceIndex!].color
-                                : nil
+                            previewColor: getPreviewColor()
                         )
                     }
                 }
             }
         }
-        .padding(BlockBlastConstants.cellSpacing * 2)
+        .padding(spacing * 2)
         .background(
             GeometryReader { geometry in
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(BlockBlastConstants.gridBackground.opacity(0.9))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(BlockBlastConstants.accentLime.opacity(0.2), lineWidth: 1)
-                    )
-                    .shadow(color: .black.opacity(0.4), radius: 10, x: 0, y: 5)
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(BlockBlastConstants.gridBackground)
                     .onAppear {
-                        gridFrame = geometry.frame(in: .global)
+                        DispatchQueue.main.async {
+                            gridFrame = geometry.frame(in: .global)
+                        }
                     }
                     .onChange(of: geometry.frame(in: .global)) { _, newFrame in
                         gridFrame = newFrame
@@ -115,6 +146,14 @@ struct BlockGridView: View {
         }
         return false
     }
+    
+    private func getPreviewColor() -> Color? {
+        guard let pieceIndex = viewModel.draggedPieceIndex,
+              pieceIndex < viewModel.availablePieces.count else {
+            return nil
+        }
+        return viewModel.availablePieces[pieceIndex].color
+    }
 }
 
 struct GridCellView: View {
@@ -129,23 +168,23 @@ struct GridCellView: View {
             RoundedRectangle(cornerRadius: BlockBlastConstants.cellCornerRadius)
                 .fill(cellColor)
                 .frame(width: cellSize, height: cellSize)
+                .shadow(
+                    color: (cell.isFilled || isPreview) ? glowColor.opacity(BlockBlastConstants.glowOpacity) : .clear,
+                    radius: BlockBlastConstants.glowRadius,
+                    x: 0,
+                    y: 0
+                )
             
             if cell.isFilled || isPreview {
-                RoundedRectangle(cornerRadius: BlockBlastConstants.cellCornerRadius * 0.7)
+                RoundedRectangle(cornerRadius: BlockBlastConstants.cellCornerRadius * 0.6)
                     .fill(
                         LinearGradient(
-                            colors: [Color.white.opacity(isPreview ? 0.4 : 0.3), Color.clear],
+                            colors: [Color.white.opacity(0.4), Color.clear],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
-                    .frame(width: cellSize * 0.85, height: cellSize * 0.85)
-            }
-            
-            if isPreview {
-                RoundedRectangle(cornerRadius: BlockBlastConstants.cellCornerRadius)
-                    .stroke(Color.white.opacity(0.6), lineWidth: 2)
-                    .frame(width: cellSize, height: cellSize)
+                    .frame(width: cellSize * 0.75, height: cellSize * 0.75)
             }
         }
         .scaleEffect(isClearing ? 0.0 : 1.0)
@@ -155,12 +194,22 @@ struct GridCellView: View {
     
     private var cellColor: Color {
         if isPreview {
-            return (previewColor ?? BlockBlastConstants.accentLime).opacity(0.7)
+            return (previewColor ?? BlockBlastConstants.cravrGreen).opacity(0.8)
         }
         if cell.isFilled, let color = cell.color {
             return color
         }
         return BlockBlastConstants.emptyCell
+    }
+    
+    private var glowColor: Color {
+        if isPreview {
+            return previewColor ?? BlockBlastConstants.cravrGreen
+        }
+        if let color = cell.color {
+            return color
+        }
+        return .clear
     }
 }
 
@@ -168,30 +217,33 @@ struct PieceTrayView: View {
     @ObservedObject var viewModel: BlockBlastViewModel
     let gridFrame: CGRect
     
+    private let slotSize = BlockBlastConstants.traySlotSize
+    
     var body: some View {
-        HStack(spacing: 20) {
+        HStack(spacing: 0) {
             ForEach(Array(viewModel.availablePieces.enumerated()), id: \.element.id) { index, piece in
-                if !piece.isUsed {
-                    DraggablePieceView(
-                        piece: piece,
-                        pieceIndex: index,
-                        viewModel: viewModel,
-                        gridFrame: gridFrame
-                    )
-                } else {
-                    Color.clear
-                        .frame(width: 60, height: 60)
+                ZStack {
+                    if !piece.isUsed {
+                        DraggablePieceView(
+                            piece: piece,
+                            pieceIndex: index,
+                            viewModel: viewModel,
+                            gridFrame: gridFrame
+                        )
+                    }
                 }
+                .frame(width: slotSize, height: slotSize)
             }
         }
+        .frame(width: slotSize * 3 + 40)
         .padding(.horizontal, 20)
-        .padding(.vertical, 15)
+        .padding(.vertical, 20)
         .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.black.opacity(0.4))
+            RoundedRectangle(cornerRadius: 20)
+                .fill(BlockBlastConstants.cravrDarkSurface)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(BlockBlastConstants.accentLime.opacity(0.2), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
                 )
         )
     }
@@ -206,14 +258,14 @@ struct DraggablePieceView: View {
     @State private var dragOffset: CGSize = .zero
     @State private var isDragging: Bool = false
     
-    private let cellSize: CGFloat = 20
-    private let cellSpacing: CGFloat = 2
+    private let trayCellSize = BlockBlastConstants.trayCellSize
+    private let trayCellSpacing = BlockBlastConstants.trayCellSpacing
     
     var body: some View {
-        BlockPieceView(piece: piece, cellSize: cellSize, cellSpacing: cellSpacing)
-            .scaleEffect(isDragging ? 1.2 : 0.8)
+        TrayPieceView(piece: piece, cellSize: trayCellSize, cellSpacing: trayCellSpacing)
+            .scaleEffect(isDragging ? 1.5 : 1.0)
+            .opacity(isDragging && !viewModel.isValidPlacement ? 0.6 : 1.0)
             .offset(dragOffset)
-            .opacity(isDragging && !viewModel.isValidPlacement ? 0.5 : 1.0)
             .gesture(
                 DragGesture(coordinateSpace: .global)
                     .onChanged { value in
@@ -224,91 +276,36 @@ struct DraggablePieceView: View {
                         
                         dragOffset = value.translation
                         
-                        let dropLocation = value.location
-                        updatePreviewPositionWithSnapping(dropLocation: dropLocation)
+                        let fingerLocation = value.location
+                        findAndUpdatePreview(at: fingerLocation)
                     }
-                    .onEnded { value in
-                        let dropLocation = value.location
-                        handleDrop(at: dropLocation)
+                    .onEnded { _ in
+                        if viewModel.isValidPlacement {
+                            viewModel.endDrag()
+                        } else {
+                            viewModel.resetDragState()
+                        }
                         
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                             dragOffset = .zero
                             isDragging = false
                         }
-                        viewModel.endDrag()
                     }
             )
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isDragging)
+            .animation(.spring(response: 0.2, dampingFraction: 0.8), value: isDragging)
     }
     
-    private func updatePreviewPositionWithSnapping(dropLocation: CGPoint) {
-        let expandedFrame = gridFrame.insetBy(dx: -20, dy: -20)
-        
-        guard expandedFrame.contains(dropLocation) else {
-            viewModel.previewPosition = nil
-            viewModel.isValidPlacement = false
-            return
-        }
-        
-        let relativeX = dropLocation.x - gridFrame.minX
-        let relativeY = dropLocation.y - gridFrame.minY
-        
-        let padding = BlockBlastConstants.cellSpacing * 2
-        let gridCellSize = (gridFrame.width - padding * 2 - CGFloat(BlockBlastConstants.gridSize - 1) * BlockBlastConstants.cellSpacing) / CGFloat(BlockBlastConstants.gridSize)
-        let cellWithSpacing = gridCellSize + BlockBlastConstants.cellSpacing
-        
-        let exactCol = (relativeX - padding) / cellWithSpacing
-        let exactRow = (relativeY - padding) / cellWithSpacing
-        
-        let baseCol = Int(exactCol)
-        let baseRow = Int(exactRow)
-        
-        let snapRange = 1
-        var bestPosition: (row: Int, col: Int)? = nil
-        var bestDistance: CGFloat = CGFloat.infinity
-        
-        for rowOffset in -snapRange...snapRange {
-            for colOffset in -snapRange...snapRange {
-                let testRow = baseRow + rowOffset
-                let testCol = baseCol + colOffset
-                
-                guard testRow >= 0 && testRow < BlockBlastConstants.gridSize &&
-                      testCol >= 0 && testCol < BlockBlastConstants.gridSize else {
-                    continue
-                }
-                
-                if viewModel.grid.canPlace(piece: piece, at: testRow, col: testCol) {
-                    let cellCenterX = padding + CGFloat(testCol) * cellWithSpacing + gridCellSize / 2
-                    let cellCenterY = padding + CGFloat(testRow) * cellWithSpacing + gridCellSize / 2
-                    let distance = sqrt(pow(relativeX - cellCenterX, 2) + pow(relativeY - cellCenterY, 2))
-
-                    if distance < bestDistance && distance < gridCellSize * 1.5 {
-                        bestDistance = distance
-                        bestPosition = (testRow, testCol)
-                    }
-                }
-            }
-        }
-        
-        if let position = bestPosition {
-            viewModel.updatePreviewPosition(row: position.row, col: position.col)
+    private func findAndUpdatePreview(at point: CGPoint) {
+        if let bestPos = viewModel.findBestPlacement(for: pieceIndex, near: point, gridFrame: gridFrame) {
+            viewModel.updatePreviewPosition(row: bestPos.row, col: bestPos.col)
         } else {
             viewModel.previewPosition = nil
             viewModel.isValidPlacement = false
         }
     }
-    
-    private func handleDrop(at location: CGPoint) {
-        guard let position = viewModel.previewPosition,
-              viewModel.isValidPlacement else {
-            return
-        }
-        
-        viewModel.placePiece(at: pieceIndex, gridRow: position.row, gridCol: position.col)
-    }
 }
 
-struct BlockPieceView: View {
+struct TrayPieceView: View {
     let piece: BlockPiece
     let cellSize: CGFloat
     let cellSpacing: CGFloat
@@ -319,21 +316,27 @@ struct BlockPieceView: View {
                 HStack(spacing: cellSpacing) {
                     ForEach(0..<piece.width, id: \.self) { col in
                         if piece.shape[row][col] {
-                            RoundedRectangle(cornerRadius: cellSize * 0.15)
-                                .fill(piece.color)
-                                .frame(width: cellSize, height: cellSize)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: cellSize * 0.1)
-                                        .fill(
-                                            LinearGradient(
-                                                colors: [Color.white.opacity(0.3), Color.clear],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            )
+                            ZStack {
+                                RoundedRectangle(cornerRadius: cellSize * 0.2)
+                                    .fill(piece.color)
+                                    .frame(width: cellSize, height: cellSize)
+                                    .shadow(
+                                        color: piece.color.opacity(BlockBlastConstants.glowOpacity),
+                                        radius: 6,
+                                        x: 0,
+                                        y: 0
+                                    )
+                                
+                                RoundedRectangle(cornerRadius: cellSize * 0.15)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.white.opacity(0.4), Color.clear],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
                                         )
-                                        .frame(width: cellSize * 0.8, height: cellSize * 0.8)
-                                )
-                                .shadow(color: piece.color.opacity(0.5), radius: 3, x: 0, y: 2)
+                                    )
+                                    .frame(width: cellSize * 0.7, height: cellSize * 0.7)
+                            }
                         } else {
                             Color.clear
                                 .frame(width: cellSize, height: cellSize)

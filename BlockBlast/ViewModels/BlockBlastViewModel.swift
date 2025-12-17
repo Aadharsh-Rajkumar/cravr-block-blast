@@ -18,9 +18,16 @@ class BlockBlastViewModel: ObservableObject {
     @Published var highScore: Int = 0
     @Published var hasPlayedOnce: Bool = false
     
+    @Published var soundEnabled: Bool = true
+    @Published var hapticsEnabled: Bool = true
+    
     @Published var clearingRows: Set<Int> = []
     @Published var clearingCols: Set<Int> = []
     @Published var lastPlacedCells: [(row: Int, col: Int)] = []
+    
+    @Published var showComboOverlay: Bool = false
+    @Published var comboText: String = ""
+    @Published var linesCleared: Int = 0
     
     @Published var draggedPieceIndex: Int? = nil
     @Published var dragOffset: CGSize = .zero
@@ -28,9 +35,10 @@ class BlockBlastViewModel: ObservableObject {
     @Published var isValidPlacement: Bool = false
     
     private let haptics = BlockBlast_Haptics.shared
-
+    
     init() {
         loadHighScore()
+        loadSettings()
     }
     
     func startGame() {
@@ -41,9 +49,11 @@ class BlockBlastViewModel: ObservableObject {
         score = 0
         hasPlayedOnce = true
         
-        generateNewPieces()
+        generateSmartPieces()
         
-        haptics.gameStartHaptic()
+        if hapticsEnabled {
+            haptics.gameStartHaptic()
+        }
     }
     
     func resetGame() {
@@ -58,12 +68,55 @@ class BlockBlastViewModel: ObservableObject {
         availablePieces = []
         clearingRows = []
         clearingCols = []
+        showComboOverlay = false
     }
-
-    private func generateNewPieces() {
-        availablePieces = (0..<BlockBlastConstants.piecesPerRound).map { _ in
-            PieceTemplates.randomPiece()
+    
+    func exitToMenu() {
+        if score > highScore {
+            highScore = score
+            saveHighScore()
         }
+        resetGame()
+    }
+    
+    func toggleSound() {
+        soundEnabled.toggle()
+        saveSettings()
+    }
+    
+    func toggleHaptics() {
+        hapticsEnabled.toggle()
+        saveSettings()
+    }
+    
+    private func loadSettings() {
+        soundEnabled = UserDefaults.standard.object(forKey: "blockBlastSoundEnabled") as? Bool ?? true
+        hapticsEnabled = UserDefaults.standard.object(forKey: "blockBlastHapticsEnabled") as? Bool ?? true
+    }
+    
+    private func saveSettings() {
+        UserDefaults.standard.set(soundEnabled, forKey: "blockBlastSoundEnabled")
+        UserDefaults.standard.set(hapticsEnabled, forKey: "blockBlastHapticsEnabled")
+    }
+    
+    private func generateSmartPieces() {
+        var attempts = 0
+        var pieces: [BlockPiece] = []
+        
+        repeat {
+            pieces = (0..<BlockBlastConstants.piecesPerRound).map { _ in
+                PieceTemplates.randomPiece()
+            }
+            attempts += 1
+        } while !grid.canPlaceAnyPiece(pieces) && attempts < 10
+        
+        if !grid.canPlaceAnyPiece(pieces) {
+            pieces = (0..<BlockBlastConstants.piecesPerRound).map { _ in
+                PieceTemplates.randomSmallPiece()
+            }
+        }
+        
+        availablePieces = pieces
     }
     
     private func allPiecesUsed() -> Bool {
@@ -78,62 +131,131 @@ class BlockBlastViewModel: ObservableObject {
         
         grid.place(piece: piece, at: gridRow, col: gridCol)
         availablePieces[pieceIndex].isUsed = true
-        
+
         lastPlacedCells = piece.filledCells.map { (gridRow + $0.row, gridCol + $0.col) }
         
-        haptics.impact(.medium)
-        
+        let blocksPlaced = piece.filledCells.count
+        score += blocksPlaced * BlockBlastConstants.pointsPerBlock
+
+        if hapticsEnabled {
+            haptics.impact(.medium)
+        }
+     
+        if soundEnabled {
+            BlockBlast_Audio.shared.playPlace()
+        }
+      
         let (rows, cols) = grid.findCompleteLines()
         
         if !rows.isEmpty || !cols.isEmpty {
+            let totalLines = rows.count + cols.count
+            linesCleared = totalLines
+            
             withAnimation(.easeInOut(duration: BlockBlastConstants.clearAnimationDuration)) {
                 clearingRows = Set(rows)
                 clearingCols = Set(cols)
             }
             
-            let linesCleared = rows.count + cols.count
-            let clearedCells = grid.clearLines(rows: rows, cols: cols)
+            let lineScore = totalLines * BlockBlastConstants.lineClearBonus
+            let multiplier = BlockBlastConstants.comboMultiplier(for: totalLines)
+            let totalLineScore = lineScore * multiplier
+            score += totalLineScore
+
+            if totalLines > 1 {
+                showComboOverlay(lines: totalLines, multiplier: multiplier)
+            }
             
-            let lineScore = clearedCells * BlockBlastConstants.pointsPerBlock
-            let bonus = linesCleared * BlockBlastConstants.lineBonus
-            let comboBonus = linesCleared > 1 ? (linesCleared - 1) * BlockBlastConstants.lineBonus * BlockBlastConstants.comboMultiplier : 0
+            if hapticsEnabled {
+                haptics.lineClearHaptic(lineCount: totalLines)
+            }
             
-            score += lineScore + bonus + comboBonus
-            
-            haptics.lineClearHaptic(lineCount: linesCleared)
+            if soundEnabled {
+                BlockBlast_Audio.shared.playClear()
+            }
             
             DispatchQueue.main.asyncAfter(deadline: .now() + BlockBlastConstants.clearAnimationDuration) {
+                _ = self.grid.clearLines(rows: rows, cols: cols)
                 self.clearingRows = []
                 self.clearingCols = []
             }
         }
-        
+
         if allPiecesUsed() {
-            generateNewPieces()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                self.generateSmartPieces()
+            }
         }
         
-        if !grid.canPlaceAnyPiece(availablePieces) {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + BlockBlastConstants.clearAnimationDuration + 0.1) {
+            if !self.grid.canPlaceAnyPiece(self.availablePieces) {
                 self.gameOver()
             }
         }
-
+        
         resetDragState()
+    }
+    
+    private func showComboOverlay(lines: Int, multiplier: Int) {
+        comboText = getComboText(for: lines)
+        showComboOverlay = true
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + BlockBlastConstants.comboOverlayDuration) {
+            self.showComboOverlay = false
+        }
+    }
+    
+    private func getComboText(for lines: Int) -> String {
+        switch lines {
+        case 2: return "DOUBLE!"
+        case 3: return "TRIPLE!"
+        case 4: return "QUAD!"
+        case 5: return "PENTA!"
+        default: return "COMBO x\(lines)!"
+        }
+    }
+    
+    func findBestPlacement(for pieceIndex: Int, near point: CGPoint, gridFrame: CGRect) -> (row: Int, col: Int)? {
+        guard pieceIndex < availablePieces.count else { return nil }
+        let piece = availablePieces[pieceIndex]
+        
+        let padding = BlockBlastConstants.cellSpacing * 2
+        let cellWithSpacing = BlockBlastConstants.gridCellSize + BlockBlastConstants.cellSpacing
+        
+        let relativeX = point.x - gridFrame.minX
+        let relativeY = point.y - gridFrame.minY
+        
+        let centerCol = Int((relativeX - padding) / cellWithSpacing)
+        let centerRow = Int((relativeY - padding) / cellWithSpacing)
+        
+        for radius in 0...BlockBlastConstants.gridSize {
+            for rowOffset in -radius...radius {
+                for colOffset in -radius...radius {
+                    if abs(rowOffset) != radius && abs(colOffset) != radius { continue }
+                    
+                    let testRow = centerRow + rowOffset
+                    let testCol = centerCol + colOffset
+                    
+                    guard testRow >= 0 && testCol >= 0 else { continue }
+                    guard testRow < BlockBlastConstants.gridSize && testCol < BlockBlastConstants.gridSize else { continue }
+                    
+                    if grid.canPlace(piece: piece, at: testRow, col: testCol) {
+                        return (testRow, testCol)
+                    }
+                }
+            }
+        }
+        
+        return nil
     }
     
     func startDrag(pieceIndex: Int) {
         draggedPieceIndex = pieceIndex
-        haptics.impact(.light)
-    }
-    
-    func updateDrag(offset: CGSize, gridFrame: CGRect, cellSize: CGFloat) {
-        dragOffset = offset
-        
-        guard let pieceIndex = draggedPieceIndex,
-              pieceIndex < availablePieces.count else {
-            previewPosition = nil
-            isValidPlacement = false
-            return
+        if hapticsEnabled {
+            haptics.impact(.light)
+        }
+
+        if soundEnabled {
+            BlockBlast_Audio.shared.playPickup()
         }
     }
     
@@ -146,14 +268,14 @@ class BlockBlastViewModel: ObservableObject {
         }
         
         let piece = availablePieces[pieceIndex]
-
+        
         let isValid = grid.canPlace(piece: piece, at: row, col: col)
 
         if previewPosition?.row != row || previewPosition?.col != col {
             previewPosition = (row, col)
             isValidPlacement = isValid
             
-            if isValid {
+            if isValid && hapticsEnabled {
                 haptics.selectionHaptic()
             }
         }
@@ -179,7 +301,9 @@ class BlockBlastViewModel: ObservableObject {
     }
     
     private func gameOver() {
-        haptics.gameOverHaptic()
+        if hapticsEnabled {
+            haptics.gameOverHaptic()
+        }
         
         if score > highScore {
             highScore = score
