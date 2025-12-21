@@ -10,12 +10,16 @@ import SwiftUI
 struct BlockBlastGameView: View {
     @ObservedObject var viewModel: BlockBlastViewModel
     @State private var gridFrame: CGRect = .zero
+    @State private var showExitConfirmation: Bool = false
     
     var body: some View {
         VStack(spacing: 0) {
-            TopBarView(viewModel: viewModel)
-                .padding(.top, 10)
-                .padding(.bottom, 20)
+            TopBarView(
+                viewModel: viewModel,
+                showExitConfirmation: $showExitConfirmation
+            )
+            .padding(.top, 10)
+            .padding(.bottom, 20)
             
             Spacer()
             
@@ -29,60 +33,70 @@ struct BlockBlastGameView: View {
             PieceTrayView(viewModel: viewModel, gridFrame: gridFrame)
                 .padding(.bottom, 30)
         }
+        .alert("Exit Game?", isPresented: $showExitConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Exit", role: .destructive) {
+                viewModel.exitToMenu()
+            }
+        } message: {
+            Text("You will lose your current progress.")
+        }
     }
 }
 
 struct TopBarView: View {
     @ObservedObject var viewModel: BlockBlastViewModel
+    @Binding var showExitConfirmation: Bool
     
     var body: some View {
-        HStack {
-            Button(action: {
-                viewModel.exitToMenu()
-            }) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(.white.opacity(0.7))
-                    .frame(width: 36, height: 36)
-                    .background(Color.white.opacity(0.15))
-                    .clipShape(Circle())
-            }
-            
-            Spacer()
-            
-            VStack(spacing: 2) {
+        ZStack {
+            VStack(spacing: 4) {
                 Image(systemName: "crown.fill")
-                    .font(.system(size: 14))
+                    .font(.system(size: 20))
                     .foregroundColor(BlockBlastConstants.cravrMaize)
                 
                 Text("\(viewModel.score)")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .font(.system(size: 48, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
             }
+            .zIndex(1)
             
-            Spacer()
-            
-            HStack(spacing: 8) {
+            HStack {
                 Button(action: {
-                    viewModel.toggleSound()
+                    showExitConfirmation = true
                 }) {
-                    Image(systemName: viewModel.soundEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(viewModel.soundEnabled ? BlockBlastConstants.cravrGreen : .white.opacity(0.5))
-                        .frame(width: 36, height: 36)
+                    Image(systemName: "xmark")
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundColor(.white.opacity(0.8))
+                        .frame(width: 50, height: 50)
                         .background(Color.white.opacity(0.15))
                         .clipShape(Circle())
                 }
                 
-                Button(action: {
-                    viewModel.toggleHaptics()
-                }) {
-                    Image(systemName: viewModel.hapticsEnabled ? "iphone.radiowaves.left.and.right" : "iphone.slash")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(viewModel.hapticsEnabled ? BlockBlastConstants.cravrGreen : .white.opacity(0.5))
-                        .frame(width: 36, height: 36)
-                        .background(Color.white.opacity(0.15))
-                        .clipShape(Circle())
+                Spacer()
+                
+                HStack(spacing: 12) {
+                    Button(action: {
+                        viewModel.toggleSound()
+                    }) {
+                        Image(systemName: viewModel.soundEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundColor(viewModel.soundEnabled ? BlockBlastConstants.cravrGreen : .white.opacity(0.5))
+                            .frame(width: 50, height: 50)
+                            .background(Color.white.opacity(0.15))
+                            .clipShape(Circle())
+                    }
+                    
+                    Button(action: {
+                        viewModel.toggleHaptics()
+                    }) {
+                        Image(systemName: viewModel.hapticsEnabled ? "iphone.radiowaves.left.and.right" : "iphone.slash")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundColor(viewModel.hapticsEnabled ? BlockBlastConstants.cravrGreen : .white.opacity(0.5))
+                            .frame(width: 50, height: 50)
+                            .background(Color.white.opacity(0.15))
+                            .clipShape(Circle())
+                    }
                 }
             }
         }
@@ -261,9 +275,13 @@ struct DraggablePieceView: View {
     private let trayCellSize = BlockBlastConstants.trayCellSize
     private let trayCellSpacing = BlockBlastConstants.trayCellSpacing
     
+    private var dragScale: CGFloat {
+        BlockBlastConstants.gridCellSize / trayCellSize
+    }
+    
     var body: some View {
         TrayPieceView(piece: piece, cellSize: trayCellSize, cellSpacing: trayCellSpacing)
-            .scaleEffect(isDragging ? 1.5 : 1.0)
+            .scaleEffect(isDragging ? dragScale : 1.0)
             .opacity(isDragging && !viewModel.isValidPlacement ? 0.6 : 1.0)
             .offset(dragOffset)
             .gesture(

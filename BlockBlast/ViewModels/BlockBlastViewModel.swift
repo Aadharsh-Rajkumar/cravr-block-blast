@@ -24,7 +24,7 @@ class BlockBlastViewModel: ObservableObject {
     @Published var clearingRows: Set<Int> = []
     @Published var clearingCols: Set<Int> = []
     @Published var lastPlacedCells: [(row: Int, col: Int)] = []
-    
+
     @Published var showComboOverlay: Bool = false
     @Published var comboText: String = ""
     @Published var linesCleared: Int = 0
@@ -90,15 +90,15 @@ class BlockBlastViewModel: ObservableObject {
     }
     
     private func loadSettings() {
-        soundEnabled = UserDefaults.standard.object(forKey: "blockBlastSoundEnabled") as? Bool ?? true
-        hapticsEnabled = UserDefaults.standard.object(forKey: "blockBlastHapticsEnabled") as? Bool ?? true
+        soundEnabled = UserDefaults.standard.object(forKey: "blockBlastSoundEnabled_v2") as? Bool ?? true
+        hapticsEnabled = UserDefaults.standard.object(forKey: "blockBlastHapticsEnabled_v2") as? Bool ?? true
     }
     
     private func saveSettings() {
-        UserDefaults.standard.set(soundEnabled, forKey: "blockBlastSoundEnabled")
-        UserDefaults.standard.set(hapticsEnabled, forKey: "blockBlastHapticsEnabled")
+        UserDefaults.standard.set(soundEnabled, forKey: "blockBlastSoundEnabled_v2")
+        UserDefaults.standard.set(hapticsEnabled, forKey: "blockBlastHapticsEnabled_v2")
     }
-    
+
     private func generateSmartPieces() {
         var attempts = 0
         var pieces: [BlockPiece] = []
@@ -118,7 +118,7 @@ class BlockBlastViewModel: ObservableObject {
         
         availablePieces = pieces
     }
-    
+
     private func allPiecesUsed() -> Bool {
         availablePieces.allSatisfy { $0.isUsed }
     }
@@ -140,11 +140,11 @@ class BlockBlastViewModel: ObservableObject {
         if hapticsEnabled {
             haptics.impact(.medium)
         }
-     
+        
         if soundEnabled {
             BlockBlast_Audio.shared.playPlace()
         }
-      
+        
         let (rows, cols) = grid.findCompleteLines()
         
         if !rows.isEmpty || !cols.isEmpty {
@@ -155,7 +155,7 @@ class BlockBlastViewModel: ObservableObject {
                 clearingRows = Set(rows)
                 clearingCols = Set(cols)
             }
-            
+
             let lineScore = totalLines * BlockBlastConstants.lineClearBonus
             let multiplier = BlockBlastConstants.comboMultiplier(for: totalLines)
             let totalLineScore = lineScore * multiplier
@@ -179,13 +179,13 @@ class BlockBlastViewModel: ObservableObject {
                 self.clearingCols = []
             }
         }
-
+        
         if allPiecesUsed() {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 self.generateSmartPieces()
             }
         }
-        
+
         DispatchQueue.main.asyncAfter(deadline: .now() + BlockBlastConstants.clearAnimationDuration + 0.1) {
             if !self.grid.canPlaceAnyPiece(self.availablePieces) {
                 self.gameOver()
@@ -217,7 +217,13 @@ class BlockBlastViewModel: ObservableObject {
     func findBestPlacement(for pieceIndex: Int, near point: CGPoint, gridFrame: CGRect) -> (row: Int, col: Int)? {
         guard pieceIndex < availablePieces.count else { return nil }
         let piece = availablePieces[pieceIndex]
+
+        let strictGridFrame = gridFrame.insetBy(dx: -10, dy: -10)
         
+        if !strictGridFrame.contains(point) {
+            return nil
+        }
+
         let padding = BlockBlastConstants.cellSpacing * 2
         let cellWithSpacing = BlockBlastConstants.gridCellSize + BlockBlastConstants.cellSpacing
         
@@ -234,7 +240,7 @@ class BlockBlastViewModel: ObservableObject {
                     
                     let testRow = centerRow + rowOffset
                     let testCol = centerCol + colOffset
-                    
+
                     guard testRow >= 0 && testCol >= 0 else { continue }
                     guard testRow < BlockBlastConstants.gridSize && testCol < BlockBlastConstants.gridSize else { continue }
                     
@@ -253,7 +259,7 @@ class BlockBlastViewModel: ObservableObject {
         if hapticsEnabled {
             haptics.impact(.light)
         }
-
+        
         if soundEnabled {
             BlockBlast_Audio.shared.playPickup()
         }
@@ -270,7 +276,7 @@ class BlockBlastViewModel: ObservableObject {
         let piece = availablePieces[pieceIndex]
         
         let isValid = grid.canPlace(piece: piece, at: row, col: col)
-
+        
         if previewPosition?.row != row || previewPosition?.col != col {
             previewPosition = (row, col)
             isValidPlacement = isValid
@@ -299,7 +305,7 @@ class BlockBlastViewModel: ObservableObject {
         isValidPlacement = false
         lastPlacedCells = []
     }
-    
+
     private func gameOver() {
         if hapticsEnabled {
             haptics.gameOverHaptic()
